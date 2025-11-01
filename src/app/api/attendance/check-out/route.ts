@@ -5,11 +5,13 @@ import { Attendance } from "@/models/attendance";
 
 export async function POST() {
   const session = await getServerAuthSession();
-  if (!session || session.user.role !== "employee") {
+  const user = session?.user;
+  if (!session || !user || user.role !== "employee") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const userId = user.id;
   await connectToDatabase();
-  const open = await Attendance.findOne({ user: session.user.id, checkOut: null }).sort({ createdAt: 1 });
+  const open = await Attendance.findOne({ user: userId, checkOut: null }).sort({ createdAt: 1 });
   if (!open) {
     return NextResponse.json({ error: "Not checked in" }, { status: 400 });
   }

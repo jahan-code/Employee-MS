@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Types } from "mongoose";
 import { z } from "zod";
 import { getServerAuthSession } from "@/lib/auth";
@@ -10,7 +10,7 @@ const schema = z.object({
   decisionNote: z.string().max(500).optional(),
 });
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerAuthSession();
     const userId = session?.user?.id;
@@ -23,7 +23,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
     }
-    const leave = await Leave.findById(params.id);
+    const { id } = await context.params;
+    const leave = await Leave.findById(id);
     if (!leave) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }

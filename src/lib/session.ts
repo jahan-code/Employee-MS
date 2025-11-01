@@ -13,9 +13,10 @@ export async function requireAuth() {
 
 export async function requireRole(role: "employee" | "hr") {
   const session = await requireAuth();
+  const userRole = session.user?.role ?? "employee";
 
-  if (session.user.role !== role) {
-    if (session.user.role === "hr") {
+  if (userRole !== role) {
+    if (userRole === "hr") {
       redirect("/hr");
     }
 

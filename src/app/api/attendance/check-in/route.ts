@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Already checked in" }, { status: 400 });
       }
       todayRecord.activeSince = now;
-      todayRecord.checkOut = null;
+      todayRecord.set("checkOut", null);
       await todayRecord.save();
       return NextResponse.json({
         ok: true,

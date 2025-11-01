@@ -18,7 +18,6 @@ export default async function HRLayout({ children }: { children: React.ReactNode
       title="HR Portal"
       subtitle=""
       breadcrumbs={[]}
-      companyName={session.user?.companyName}
       settingsNav={[
         { href: "/hr/settings/company", label: "Company profile", icon: <Building2 className="h-4 w-4" /> },
         { href: "/hr/settings/preferences", label: "Preferences", icon: <Settings2 className="h-4 w-4" /> },

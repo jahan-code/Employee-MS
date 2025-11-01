@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerAuthSession } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
 import { Attendance } from "@/models/attendance";
@@ -15,7 +15,7 @@ function endOfDay(d: Date) {
   return x;
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerAuthSession();
     if (!session || session.user?.role !== "hr") {
@@ -29,8 +29,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const from = fromStr ? startOfDay(new Date(fromStr)) : startOfDay(new Date());
     const to = toStr ? endOfDay(new Date(toStr)) : endOfDay(new Date());
 
+    const { id } = await context.params;
+
     const list = await Attendance.find({
-      user: params.id,
+      user: id,
       createdAt: { $gte: from, $lte: to },
     })
       .sort({ createdAt: -1 })

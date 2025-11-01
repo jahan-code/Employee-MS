@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerAuthSession } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
@@ -6,7 +6,7 @@ import { User } from "@/models/user";
 
 const schema = z.object({ quotaAnnual: z.number().min(0).max(365), quotaSick: z.number().min(0).max(365) });
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerAuthSession();
     if (!session || session.user?.role !== "hr") {
@@ -18,7 +18,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
     }
-    const user = await User.findById(params.id);
+    const { id } = await context.params;
+    const user = await User.findById(id);
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
     user.leaveQuotaAnnual = parsed.data.quotaAnnual;
     user.leaveQuotaSick = parsed.data.quotaSick;

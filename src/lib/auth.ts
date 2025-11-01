@@ -49,28 +49,37 @@ export const authOptions: NextAuthOptions = {
           password === ADMIN_PASSWORD
         ) {
           await connectToDatabase();
-          let admin = await User.findOne({ email: ADMIN_EMAIL.toLowerCase() });
+          const adminEmail = ADMIN_EMAIL.toLowerCase();
           const desiredHash = await hashPassword(ADMIN_PASSWORD);
-          if (!admin) {
-            admin = await User.create({
+          const existingAdmin = await User.findOne({ email: adminEmail });
+
+          if (!existingAdmin) {
+            const createdAdmin = await User.create({
               name: "Admin",
-              email: ADMIN_EMAIL.toLowerCase(),
+              email: adminEmail,
               passwordHash: desiredHash,
               role: "hr",
               passkeyVerified: true,
             });
-          } else {
-            admin.role = "hr";
-            admin.passkeyVerified = true;
-            admin.passwordHash = desiredHash;
-            await admin.save();
+
+            return {
+              id: createdAdmin._id.toString(),
+              name: createdAdmin.name,
+              email: createdAdmin.email,
+              role: createdAdmin.role,
+            };
           }
 
+          existingAdmin.role = "hr";
+          existingAdmin.passkeyVerified = true;
+          existingAdmin.passwordHash = desiredHash;
+          await existingAdmin.save();
+
           return {
-            id: admin._id.toString(),
-            name: admin.name,
-            email: admin.email,
-            role: admin.role,
+            id: existingAdmin._id.toString(),
+            name: existingAdmin.name,
+            email: existingAdmin.email,
+            role: existingAdmin.role,
           };
         }
 
@@ -127,8 +136,11 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = typeof (token as JWT).id === "string" ? (token as JWT).id : "";
-        session.user.role = ((token as JWT).role as UserRole | undefined) ?? "employee";
+        const tokenId = (token as JWT).id;
+        const tokenRole = (token as JWT).role;
+
+        session.user.id = typeof tokenId === "string" ? tokenId : "";
+        session.user.role = (typeof tokenRole === "string" ? (tokenRole as UserRole) : undefined) ?? "employee";
       }
 
       return session;

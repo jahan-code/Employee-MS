@@ -192,9 +192,11 @@ export function CompanySettingsForm() {
     return start < end;
   }
 
-  function parseAllowedIps(value: string) {
+  type ParsedIpsResult = { values: string[]; error: string | null };
+
+  function parseAllowedIps(value: string): ParsedIpsResult {
     if (!value.trim()) {
-      return { values: [], error: null } as const;
+      return { values: [], error: null };
     }
     const lines = value
       .split(/\r?\n/)
@@ -203,11 +205,11 @@ export function CompanySettingsForm() {
 
     for (const line of lines) {
       if (!isValidIpv4(line) && !isValidIpv4Cidr(line)) {
-        return { values: [] as string[], error: `"${line}" is not a valid IPv4 address or CIDR range.` } as const;
+        return { values: [], error: `"${line}" is not a valid IPv4 address or CIDR range.` };
       }
     }
 
-    return { values: lines, error: null } as const;
+    return { values: [...lines], error: null };
   }
 
   function isValidIpv4(value: string) {

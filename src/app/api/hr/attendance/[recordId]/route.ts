@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerAuthSession } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db";
@@ -11,10 +11,11 @@ const schema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-export async function PUT(req: Request, { params }: { params: { recordId: string } }) {
+export async function PUT(req: NextRequest, context: { params: Promise<{ recordId: string }> }) {
   try {
     const session = await getServerAuthSession();
-    if (!session || session.user.role !== "hr") {
+    const user = session?.user;
+    if (!session || !user || user.role !== "hr") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -26,7 +27,9 @@ export async function PUT(req: Request, { params }: { params: { recordId: string
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
     }
 
-    const rec = await Attendance.findById(params.recordId);
+    const { recordId } = await context.params;
+
+    const rec = await Attendance.findById(recordId);
     if (!rec) {
       return NextResponse.json({ error: "Record not found" }, { status: 404 });
     }
@@ -37,18 +40,24 @@ export async function PUT(req: Request, { params }: { params: { recordId: string
       durationMinutes: rec.durationMinutes,
     };
 
-    if (parsed.data.checkIn !== undefined) {
-      rec.checkIn = new Date(parsed.data.checkIn as any);
+    const { checkIn, checkOut, reason } = parsed.data;
+
+    if (checkIn !== undefined) {
+      rec.checkIn = checkIn instanceof Date ? checkIn : new Date(checkIn);
     }
-    if (parsed.data.checkOut !== undefined) {
-      rec.checkOut = parsed.data.checkOut === null ? null : new Date(parsed.data.checkOut as any);
+    if (checkOut !== undefined) {
+      if (checkOut === null) {
+        rec.set("checkOut", null);
+      } else {
+        rec.checkOut = checkOut instanceof Date ? checkOut : new Date(checkOut);
+      }
     }
 
     // Recalculate duration if both ends present
     if (rec.checkOut && rec.checkIn) {
       rec.durationMinutes = Math.max(0, Math.round((rec.checkOut.getTime() - rec.checkIn.getTime()) / 60000));
     } else if (!rec.checkOut) {
-      rec.durationMinutes = null;
+      rec.set("durationMinutes", null);
     }
 
     await rec.save();
@@ -60,16 +69,16 @@ export async function PUT(req: Request, { params }: { params: { recordId: string
     };
 
     await AuditLog.create({
-      actor: session.user.id,
+      actor: user.id,
       action: "attendance.update",
       entityType: "Attendance",
       entityId: rec._id.toString(),
       changes: { before, after },
-      reason: parsed.data.reason ?? undefined,
+      reason: reason ?? undefined,
     });
 
     return NextResponse.json({ ok: true, record: after });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
 }
